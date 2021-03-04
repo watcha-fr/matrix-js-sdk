@@ -3190,6 +3190,7 @@ MatrixClient.prototype.inviteByThreePid = async function(
         address: address,
     };
 
+    /* watcha!
     if (
         this.identityServer &&
         this.identityServer.getAccessToken &&
@@ -3200,6 +3201,7 @@ MatrixClient.prototype.inviteByThreePid = async function(
             params.id_access_token = identityAccessToken;
         }
     }
+    !watcha */
 
     return this._http.authedRequest(callback, "POST", path, undefined, params);
 };
