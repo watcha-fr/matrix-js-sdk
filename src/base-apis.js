@@ -490,6 +490,7 @@ MatrixBaseApis.prototype.createRoom = async function(options, callback) {
     // inject the id_access_token if inviting 3rd party addresses
     const invitesNeedingToken = (options.invite_3pid || [])
         .filter(i => !i.id_access_token);
+    /* watcha!
     if (
         invitesNeedingToken.length > 0 &&
         this.identityServer &&
@@ -503,6 +504,7 @@ MatrixBaseApis.prototype.createRoom = async function(options, callback) {
             }
         }
     }
+    !watcha */
 
     return this._http.authedRequest(
         callback, "POST", "/createRoom", undefined, options,
