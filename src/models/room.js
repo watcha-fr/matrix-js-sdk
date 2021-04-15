@@ -1897,6 +1897,11 @@ Room.prototype.isSpaceRoom = function() {
  * @return {string} The calculated room name.
  */
 function calculateRoomName(room, userId, ignoreRoomNameEvent) {
+    // watcha+
+    // HACK: until https://github.com/matrix-org/matrix-js-sdk/issues/1309
+    const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings'));
+    const isCurrentLangFr = mxLocalSettings?.language === "fr"
+    // +watcha
     if (!ignoreRoomNameEvent) {
         // check for an alias, if any. for now, assume first alias is the
         // official one.
@@ -1961,6 +1966,15 @@ function calculateRoomName(room, userId, ignoreRoomNameEvent) {
                 return i.getContent().display_name;
             });
 
+            // watcha+
+            if (isCurrentLangFr) {
+                if (thirdPartyNames.length === 1) {
+                    return `Invitation envoyée (${memberNamesToRoomName(thirdPartyNames)})`;
+                } else {
+                    return `Invitations envoyées (${memberNamesToRoomName(thirdPartyNames)})`;
+                }
+            }
+            // +watcha
             return `Inviting ${memberNamesToRoomName(thirdPartyNames)}`;
         }
     }
@@ -1975,13 +1989,17 @@ function calculateRoomName(room, userId, ignoreRoomNameEvent) {
         }).map((m) => m.name);
     }
     if (leftNames.length) {
+        if (isCurrentLangFr) return `Salon vide (auparavant ${memberNamesToRoomName(leftNames)})`; // watcha+
         return `Empty room (was ${memberNamesToRoomName(leftNames)})`;
     } else {
+        if (isCurrentLangFr) return "Salon vide"; // watcha+
         return "Empty room";
     }
 }
 
 function memberNamesToRoomName(names, count = (names.length + 1)) {
+    const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+
+    if (mxLocalSettings?.language === "fr") return memberNamesToRoomNameFr(names, count); // watcha+
     const countWithoutMe = count - 1;
     if (!names.length) {
        return "Empty room";
@@ -1998,6 +2016,26 @@ function memberNamesToRoomName(names, count = (names.length + 1)) {
         }
     }
 }
+
+// watcha+
+function memberNamesToRoomNameFr(names, count = (names.length + 1)) {
+    const countWithoutMe = count - 1;
+    if (!names.length) {
+       return "Salon vide";
+    } else if (names.length === 1 && countWithoutMe <= 1) {
+        return names[0];
+    } else if (names.length === 2 && countWithoutMe <= 2) {
+        return `${names[0]} et ${names[1]}`;
+    } else {
+        const plural = countWithoutMe > 1;
+        if (plural) {
+            return `${names[0]} et ${countWithoutMe} autres`;
+        } else {
+            return `${names[0]} et 1 autre`;
+        }
+    }
+}
+// +watcha
 
 /**
  * Fires when an event we had previously received is redacted.
