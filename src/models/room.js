@@ -1936,6 +1936,11 @@ Room.prototype.canInvite = function(userId) {
     if (powerLevels && me && powerLevels.invite > me.powerLevel) {
         canInvite = false;
     }
+    // watcha+
+    if (this._client.isPartner()) {
+        canInvite = false;
+    }
+    // +watcha
     return canInvite;
 };
 

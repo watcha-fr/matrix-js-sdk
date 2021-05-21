@@ -797,6 +797,24 @@ MatrixClient.prototype.setGuest = function(isGuest) {
     this._isGuest = isGuest;
 };
 
+// watcha+
+/**
+ * Return whether the client is configured for a partner account.
+ * @return {boolean} True if this is a partner account.
+ */
+MatrixClient.prototype.isPartner = function() {
+    return this._isPartner;
+};
+
+/**
+ * Set whether this client is a partner account.
+ * @param {boolean} isPartner True if this is a partner account.
+ */
+MatrixClient.prototype.setPartner = function(isPartner) {
+    this._isPartner = isPartner;
+};
+// +watcha
+
 /**
  * Retry a backed off syncing request immediately. This should only be used when
  * the user <b>explicitly</b> attempts to retry their lost connection.
