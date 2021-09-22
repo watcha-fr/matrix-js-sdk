@@ -58,6 +58,8 @@ import { User } from "./models/user";
 import {AutoDiscovery} from "./autodiscovery";
 import {DEHYDRATION_ALGORITHM} from "./crypto/dehydration";
 
+import {WatchaApis} from "./watcha-apis"; // watcha+
+
 const SCROLLBACK_DELAY_MS = 3000;
 export const CRYPTO_ENABLED = isCryptoAvailable();
 const CAPABILITIES_CACHE_MS = 21600000; // 6 hours - an arbitrary value
@@ -285,6 +287,7 @@ export function MatrixClient(opts) {
     opts.idBaseUrl = utils.ensureNoTrailingSlash(opts.idBaseUrl);
 
     MatrixBaseApis.call(this, opts);
+    WatchaApis.call(this, opts); // watcha+
 
     this.olmVersion = null; // Populated after initCrypto is done
 
@@ -481,6 +484,7 @@ export function MatrixClient(opts) {
 }
 utils.inherits(MatrixClient, EventEmitter);
 utils.extend(MatrixClient.prototype, MatrixBaseApis.prototype);
+utils.extend(MatrixClient.prototype, WatchaApis.prototype); // watcha+
 
 /**
  * Try to rehydrate a device if available.  The client must have been
@@ -796,24 +800,6 @@ MatrixClient.prototype.setGuest = function(isGuest) {
     // the dev manually flipping this flag.
     this._isGuest = isGuest;
 };
-
-// watcha+
-/**
- * Return whether the client is configured for a partner account.
- * @return {boolean} True if this is a partner account.
- */
-MatrixClient.prototype.isPartner = function() {
-    return this._isPartner;
-};
-
-/**
- * Set whether this client is a partner account.
- * @param {boolean} isPartner True if this is a partner account.
- */
-MatrixClient.prototype.setPartner = function(isPartner) {
-    this._isPartner = isPartner;
-};
-// +watcha
 
 /**
  * Retry a backed off syncing request immediately. This should only be used when
