@@ -5240,7 +5240,10 @@ MatrixClient.prototype._fetchClientWellKnown = async function() {
     // `getRawClientConfig` does not throw or reject on network errors, instead
     // it absorbs errors and returns `{}`.
     this._clientWellKnownPromise = AutoDiscovery.getRawClientConfig(
+        /* watcha!
         this.getDomain(),
+        !watcha */
+        window.location.hostname // watcha+
     );
     this._clientWellKnown = await this._clientWellKnownPromise;
     this.emit("WellKnown.client", this._clientWellKnown);
