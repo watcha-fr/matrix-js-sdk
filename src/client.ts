@@ -8656,7 +8656,7 @@ export class MatrixClient extends EventEmitter {
      * @return {module:http-api.MatrixError} Rejects: with an error response.
      */
     public getOwnCalendars(): Promise<IOwnCalendars> {
-        return this.http.authedRequest(undefined, "GET", "/calendars", undefined, undefined, {
+        return this.http.authedRequest(undefined, Method.Get, "/calendars", undefined, undefined, {
             prefix: PREFIX_WATCHA_NEXTCLOUD
         });
     };
@@ -8670,7 +8670,7 @@ export class MatrixClient extends EventEmitter {
         const path = utils.encodeUri("/calendars/$calendarId", {
             $calendarId: calendarId.toString(),
         });
-        return this.http.authedRequest(undefined, "GET", path, undefined, undefined, {
+        return this.http.authedRequest(undefined, Method.Get, path, undefined, undefined, {
             prefix: PREFIX_WATCHA_NEXTCLOUD
         });
     };
@@ -8684,7 +8684,7 @@ export class MatrixClient extends EventEmitter {
         const path = utils.encodeUri("/calendars/$calendarId/top", {
             $calendarId: calendarId.toString(),
         });
-        return this.http.authedRequest(undefined, "PUT", path, undefined, undefined, {
+        return this.http.authedRequest(undefined, Method.Put, path, undefined, undefined, {
             prefix: PREFIX_WATCHA_NEXTCLOUD
         });
     };
