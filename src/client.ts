@@ -49,6 +49,7 @@ import {
     PREFIX_R0,
     PREFIX_UNSTABLE,
     retryNetworkOperation,
+    PREFIX_WATCHA_NEXTCLOUD, // watcha+
 } from "./http-api";
 import {
     Crypto,
@@ -161,6 +162,7 @@ const SCROLLBACK_DELAY_MS = 3000;
 export const CRYPTO_ENABLED: boolean = isCryptoAvailable();
 const CAPABILITIES_CACHE_MS = 21600000; // 6 hours - an arbitrary value
 const TURN_CHECK_INTERVAL = 10 * 60 * 1000; // poll for turn credentials every 10 minutes
+const CALENDAR_EVENT_TYPE = "watcha.room.nextcloud_calendar"; // watcha+
 
 interface IExportedDevice {
     olmDevice: IOlmDevice;
@@ -690,6 +692,27 @@ interface IRoomKeysResponse {
 interface IRoomsKeysResponse {
     rooms: Record<string, IRoomKeysResponse>;
 }
+
+// watcha+
+export interface IOwnCalendars {
+    VEVENT_VTODO: IOwnCalendar[];
+    VEVENT: IOwnCalendar[];
+    VTODO: IOwnCalendar[];
+}
+
+export interface IOwnCalendar {
+    id: number;
+    displayname: string;
+}
+
+export interface ICalendar {
+    id: number;
+    displayname: string;
+    components: string[];
+    is_personal: boolean;
+}
+// +watcha
+
 /* eslint-enable camelcase */
 
 // We're using this constant for methods overloading and inspect whether a variable
@@ -736,6 +759,7 @@ export class MatrixClient extends EventEmitter {
     protected canSupportVoip = false;
     protected peekSync: SyncApi = null;
     protected isGuestAccount = false;
+    protected isPartnerAccount = false; // watcha+
     protected ongoingScrollbacks: {[roomId: string]: {promise?: Promise<Room>, errorTs?: number}} = {};
     protected notifTimelineSet: EventTimelineSet = null;
     protected cryptoStore: CryptoStore;
@@ -1368,6 +1392,24 @@ export class MatrixClient extends EventEmitter {
         // the dev manually flipping this flag.
         this.isGuestAccount = guest;
     }
+
+    // watcha+
+    /**
+     * Return whether the client is configured for a partner account.
+     * @return {boolean} True if this is a partner account.
+     */
+    public isPartner(): boolean {
+        return this.isPartnerAccount;
+    };
+    
+    /**
+     * Set whether this client is a partner account.
+     * @param {boolean} partner True if this is a partner account.
+     */
+    public setPartner(partner: boolean) {
+        this.isPartnerAccount = partner;
+    };
+    // +watcha
 
     /**
      * Return the provided scheduler, if any.
@@ -4414,7 +4456,10 @@ export class MatrixClient extends EventEmitter {
             { $roomId: roomId },
         );
 
+        /* watcha!
         const identityServerUrl = this.getIdentityServerUrl(true);
+        !watcha */
+        const identityServerUrl = "https://fake-is.watcha.fr"; // watcha+ until we have an IS
         if (!identityServerUrl) {
             return Promise.reject(new MatrixError({
                 error: "No supplied identity server URL",
@@ -6025,7 +6070,10 @@ export class MatrixClient extends EventEmitter {
     private async fetchClientWellKnown(): Promise<void> {
         // `getRawClientConfig` does not throw or reject on network errors, instead
         // it absorbs errors and returns `{}`.
+        /* watcha!
         this.clientWellKnownPromise = AutoDiscovery.getRawClientConfig(this.getDomain());
+        !watcha */
+        this.clientWellKnownPromise = AutoDiscovery.getRawClientConfig(window.location.hostname); // watcha+
         this.clientWellKnown = await this.clientWellKnownPromise;
         this.emit("WellKnown.client", this.clientWellKnown);
     }
@@ -7277,7 +7325,10 @@ export class MatrixClient extends EventEmitter {
         info?: string,
         callback?: Callback,
         // eslint-disable-next-line camelcase
+    /* watcha!
     ): Promise<{ avatar_url?: string, displayname?: string }> {
+    !watcha */
+    ): Promise<{ avatar_url?: string, displayname?: string, email: string }> { // watcha+ until we have an IS
         if (utils.isFunction(info)) {
             callback = info as any as Callback; // legacy
             info = undefined;
@@ -8462,6 +8513,74 @@ export class MatrixClient extends EventEmitter {
 
         return new MSC3089TreeSpace(this, roomId);
     }
+
+    // watcha+
+    /**
+     * @return {Promise<IOwnCalendars>}
+     * @return {module:http-api.MatrixError} Rejects: with an error response.
+     */
+    public getOwnCalendars(): Promise<IOwnCalendars> {
+        return this.http.authedRequest(undefined, "GET", "/calendars", undefined, undefined, {
+            prefix: PREFIX_WATCHA_NEXTCLOUD
+        });
+    };
+    
+    /**
+     * @param {number} calendarId
+     * @return {Promise<ICalendar>}
+     * @return {module:http-api.MatrixError} Rejects: with an error response.
+     */
+    public getCalendar(calendarId: number): Promise<ICalendar> {
+        const path = utils.encodeUri("/calendars/$calendarId", {
+            $calendarId: calendarId.toString(),
+        });
+        return this.http.authedRequest(undefined, "GET", path, undefined, undefined, {
+            prefix: PREFIX_WATCHA_NEXTCLOUD
+        });
+    };
+    
+    /**
+     * @param {number} calendarId
+     * @return {Promise<{}>}
+     * @return {module:http-api.MatrixError} Rejects: with an error response.
+     */
+    public reorderCalendars(calendarId: string): Promise<{}> {
+        const path = utils.encodeUri("/calendars/$calendarId/top", {
+            $calendarId: calendarId.toString(),
+        });
+        return this.http.authedRequest(undefined, "PUT", path, undefined, undefined, {
+            prefix: PREFIX_WATCHA_NEXTCLOUD
+        });
+    };
+    
+    /**
+     * @param {string} roomId
+     * @param {number} calendarId Optional.
+     * @return {Promise<ISendEventResponse>}
+     * @return {module:http-api.MatrixError} Rejects: with an error response.
+     */
+    public async setRoomCalendar(
+        roomId: string,
+        calendarId: number = null
+    ): Promise<ISendEventResponse> {
+        return this.sendStateEvent(roomId, CALENDAR_EVENT_TYPE, {
+            id: calendarId,
+        });
+    };
+    
+    /**
+     * @param {string} roomId
+     * @param {string} stateKey
+     * @return {Promise<ISendEventResponse>}
+     * @return {module:http-api.MatrixError} Rejects: with an error response.
+     */
+    public async unsetRoomCalendar(
+        roomId: string,
+        stateKey: string
+    ): Promise<ISendEventResponse> {
+        return this.sendStateEvent(roomId, CALENDAR_EVENT_TYPE, {}, stateKey);
+    };
+    // +watcha
 
     // TODO: Remove this warning, alongside the functions
     // See https://github.com/vector-im/element-web/issues/17532
