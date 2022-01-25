@@ -73,6 +73,13 @@ export const PREFIX_IDENTITY_V2 = "/_matrix/identity/v2";
  */
 export const PREFIX_MEDIA_R0 = "/_matrix/media/r0";
 
+// watcha+
+/**
+ * URI path for the Nextcloud integration API
+ */
+export const PREFIX_WATCHA_NEXTCLOUD = "/_watcha/nextcloud";
+// +watcha
+
 type RequestProps = "method"
     | "withCredentials"
     | "json"
