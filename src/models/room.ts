@@ -2193,11 +2193,6 @@ export class Room extends EventEmitter {
         if (powerLevels && me && powerLevels.invite > me.powerLevel) {
             canInvite = false;
         }
-        // watcha+
-        if (this.client.isPartner()) {
-            canInvite = false;
-        }
-        // +watcha
         return canInvite;
     }
 
