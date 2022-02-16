@@ -2285,7 +2285,7 @@ export class Room extends EventEmitter {
      */
     private calculateRoomName(userId: string, ignoreRoomNameEvent = false): string {
         const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+ until https://github.com/matrix-org/matrix-js-sdk/issues/1309
-        const isCurrentLangFr = mxLocalSettings?.language === "fr" // watcha+ 
+        const isCurrentLangFr = mxLocalSettings?.language === "fr"; // watcha+
         if (!ignoreRoomNameEvent) {
             // check for an alias, if any. for now, assume first alias is the
             // official one.
@@ -2367,7 +2367,7 @@ export class Room extends EventEmitter {
                 if (isCurrentLangFr) {
                     return thirdPartyNames.length === 1
                         ? `Invitation envoyée (${memberNamesToRoomName(thirdPartyNames)})`
-                        : `Invitations envoyées (${memberNamesToRoomName(thirdPartyNames)})`
+                        : `Invitations envoyées (${memberNamesToRoomName(thirdPartyNames)})`;
                 }
                 // +watcha
                 return `Inviting ${memberNamesToRoomName(thirdPartyNames)}`;
@@ -2607,7 +2607,7 @@ function memberNamesToRoomName(names: string[], count = (names.length + 1)) {
 function memberNamesToRoomNameFr(names, count = (names.length + 1)) {
     const countWithoutMe = count - 1;
     if (!names.length) {
-       return "Salon vide";
+        return "Salon vide";
     } else if (names.length === 1 && countWithoutMe <= 1) {
         return names[0];
     } else if (names.length === 2 && countWithoutMe <= 2) {

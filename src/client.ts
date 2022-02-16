@@ -766,7 +766,6 @@ export interface ICalendar {
     is_personal: boolean;
 }
 // +watcha
-
 /* eslint-enable camelcase */
 
 // We're using this constant for methods overloading and inspect whether a variable
@@ -1454,15 +1453,15 @@ export class MatrixClient extends EventEmitter {
      */
     public isPartner(): boolean {
         return this.isPartnerAccount;
-    };
-    
+    }
+
     /**
      * Set whether this client is a partner account.
      * @param {boolean} partner True if this is a partner account.
      */
     public setPartner(partner: boolean) {
         this.isPartnerAccount = partner;
-    };
+    }
     // +watcha
 
     /**
@@ -7550,6 +7549,7 @@ export class MatrixClient extends EventEmitter {
     /* watcha!
     ): Promise<{ avatar_url?: string, displayname?: string }> {
     !watcha */
+    /* eslint-disable-next-line camelcase */// watcha+
     ): Promise<{ avatar_url?: string, displayname?: string, email: string }> { // watcha+ until we have an IS
         if (utils.isFunction(info)) {
             callback = info as any as Callback; // legacy
@@ -8740,10 +8740,10 @@ export class MatrixClient extends EventEmitter {
      */
     public getOwnCalendars(): Promise<IOwnCalendars> {
         return this.http.authedRequest(undefined, Method.Get, "/calendars", undefined, undefined, {
-            prefix: PREFIX_WATCHA_NEXTCLOUD
+            prefix: PREFIX_WATCHA_NEXTCLOUD,
         });
-    };
-    
+    }
+
     /**
      * @param {number} calendarId
      * @return {Promise<ICalendar>}
@@ -8754,10 +8754,10 @@ export class MatrixClient extends EventEmitter {
             $calendarId: calendarId.toString(),
         });
         return this.http.authedRequest(undefined, Method.Get, path, undefined, undefined, {
-            prefix: PREFIX_WATCHA_NEXTCLOUD
+            prefix: PREFIX_WATCHA_NEXTCLOUD,
         });
-    };
-    
+    }
+
     /**
      * @param {number} calendarId
      * @return {Promise<{}>}
@@ -8768,10 +8768,10 @@ export class MatrixClient extends EventEmitter {
             $calendarId: calendarId.toString(),
         });
         return this.http.authedRequest(undefined, Method.Put, path, undefined, undefined, {
-            prefix: PREFIX_WATCHA_NEXTCLOUD
+            prefix: PREFIX_WATCHA_NEXTCLOUD,
         });
-    };
-    
+    }
+
     /**
      * @param {string} roomId
      * @param {number} calendarId Optional.
@@ -8780,13 +8780,13 @@ export class MatrixClient extends EventEmitter {
      */
     public async setRoomCalendar(
         roomId: string,
-        calendarId: number = null
+        calendarId: number = null,
     ): Promise<ISendEventResponse> {
         return this.sendStateEvent(roomId, CALENDAR_EVENT_TYPE, {
             id: calendarId,
         });
-    };
-    
+    }
+
     /**
      * @param {string} roomId
      * @param {string} stateKey
@@ -8795,10 +8795,10 @@ export class MatrixClient extends EventEmitter {
      */
     public async unsetRoomCalendar(
         roomId: string,
-        stateKey: string
+        stateKey: string,
     ): Promise<ISendEventResponse> {
         return this.sendStateEvent(roomId, CALENDAR_EVENT_TYPE, {}, stateKey);
-    };
+    }
     // +watcha
 
     // TODO: Remove this warning, alongside the functions
