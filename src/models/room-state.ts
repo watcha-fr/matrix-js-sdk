@@ -630,6 +630,15 @@ export class RoomState extends EventEmitter {
         if (cli.isGuest()) {
             return false;
         }
+        // watcha+
+        if (cli.isPartner() && [
+            EventType.RoomTombstone,
+            EventType.SpaceChild,
+            EventType.SpaceParent,
+        ].includes(stateEventType as EventType)) {
+            return false;
+        }
+        // +watcha
         return this.maySendStateEvent(stateEventType, cli.credentials.userId);
     }
 
