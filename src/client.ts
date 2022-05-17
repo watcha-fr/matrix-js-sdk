@@ -4687,7 +4687,7 @@ export class MatrixClient extends EventEmitter {
         /* watcha!
         const identityServerUrl = this.getIdentityServerUrl(true);
         !watcha */
-        const identityServerUrl = "https://fake-is.watcha.fr"; // watcha+ until we have an IS
+        const identityServerUrl = "fake-is.watcha.fr"; // watcha+ until we have an IS
         if (!identityServerUrl) {
             return Promise.reject(new MatrixError({
                 error: "No supplied identity server URL",
