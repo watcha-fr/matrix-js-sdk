@@ -54,9 +54,9 @@ enum GroupKey {
 }
 
 export interface IResultRoomEvents {
-    count: number;
-    highlights: string[];
-    results: ISearchResult[];
+    count?: number;
+    highlights?: string[];
+    results?: ISearchResult[];
     state?: { [roomId: string]: IStateEventWithRoomId[] };
     groups?: {
         [groupKey in GroupKey]: {
@@ -114,5 +114,6 @@ export interface ISearchResults {
     count?: number;
     next_batch?: string;
     pendingRequest?: Promise<ISearchResults>;
+    abortSignal?: AbortSignal;
 }
 /* eslint-enable camelcase */

@@ -24,7 +24,7 @@ limitations under the License.
  * it will instead fire as soon as possible after resume.
  */
 
-import { logger } from './logger';
+import { logger } from "./logger";
 
 // we schedule a callback at least this often, to check if we've missed out on
 // some wall-clock time due to being suspended.
@@ -36,26 +36,29 @@ let count = 0;
 // the key for our callback with the real global.setTimeout
 let realCallbackKey: NodeJS.Timeout | number;
 
-// a sorted list of the callbacks to be run.
-// each is an object with keys [runAt, func, params, key].
-const callbackList: {
+type Callback = {
     runAt: number;
     func: (...params: any[]) => void;
     params: any[];
     key: number;
-}[] = [];
+};
+
+// a sorted list of the callbacks to be run.
+// each is an object with keys [runAt, func, params, key].
+const callbackList: Callback[] = [];
 
 // var debuglog = logger.log.bind(logger);
-const debuglog = function(...params: any[]) {};
+/* istanbul ignore next */
+const debuglog = function (...params: any[]): void {};
 
 /**
  * reimplementation of window.setTimeout, which will call the callback if
  * the wallclock time goes past the deadline.
  *
- * @param {function} func   callback to be called after a delay
- * @param {Number} delayMs  number of milliseconds to delay by
+ * @param func -   callback to be called after a delay
+ * @param delayMs -  number of milliseconds to delay by
  *
- * @return {Number} an identifier for this callback, which may be passed into
+ * @returns an identifier for this callback, which may be passed into
  *                   clearTimeout later.
  */
 export function setTimeout(func: (...params: any[]) => void, delayMs: number, ...params: any[]): number {
@@ -66,8 +69,7 @@ export function setTimeout(func: (...params: any[]) => void, delayMs: number, ..
 
     const runAt = Date.now() + delayMs;
     const key = count++;
-    debuglog("setTimeout: scheduling cb", key, "at", runAt,
-        "(delay", delayMs, ")");
+    debuglog("setTimeout: scheduling cb", key, "at", runAt, "(delay", delayMs, ")");
     const data = {
         runAt: runAt,
         func: func,
@@ -76,11 +78,9 @@ export function setTimeout(func: (...params: any[]) => void, delayMs: number, ..
     };
 
     // figure out where it goes in the list
-    const idx = binarySearch(
-        callbackList, function(el) {
-            return el.runAt - runAt;
-        },
-    );
+    const idx = binarySearch(callbackList, function (el) {
+        return el.runAt - runAt;
+    });
 
     callbackList.splice(idx, 0, data);
     scheduleRealCallback();
@@ -91,7 +91,7 @@ export function setTimeout(func: (...params: any[]) => void, delayMs: number, ..
 /**
  * reimplementation of window.clearTimeout, which mirrors setTimeout
  *
- * @param {Number} key   result from an earlier setTimeout call
+ * @param key -   result from an earlier setTimeout call
  */
 export function clearTimeout(key: number): void {
     if (callbackList.length === 0) {
@@ -99,7 +99,7 @@ export function clearTimeout(key: number): void {
     }
 
     // remove the element from the list
-    let i;
+    let i: number;
     for (i = 0; i < callbackList.length; i++) {
         const cb = callbackList[i];
         if (cb.key == key) {
@@ -135,19 +135,18 @@ function scheduleRealCallback(): void {
 }
 
 function runCallbacks(): void {
-    let cb;
     const timestamp = Date.now();
     debuglog("runCallbacks: now:", timestamp);
 
     // get the list of things to call
-    const callbacksToRun = [];
+    const callbacksToRun: Callback[] = [];
     // eslint-disable-next-line
     while (true) {
         const first = callbackList[0];
         if (!first || first.runAt > timestamp) {
             break;
         }
-        cb = callbackList.shift();
+        const cb = callbackList.shift()!;
         debuglog("runCallbacks: popping", cb.key);
         callbacksToRun.push(cb);
     }
@@ -157,13 +156,11 @@ function runCallbacks(): void {
     // register their own setTimeouts.
     scheduleRealCallback();
 
-    for (let i = 0; i < callbacksToRun.length; i++) {
-        cb = callbacksToRun[i];
+    for (const cb of callbacksToRun) {
         try {
             cb.func.apply(global, cb.params);
         } catch (e) {
-            logger.error("Uncaught exception in callback function",
-                e.stack || e);
+            logger.error("Uncaught exception in callback function", e);
         }
     }
 }

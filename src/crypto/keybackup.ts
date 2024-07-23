@@ -14,51 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { ISigned } from "../@types/signed";
-import { IEncryptedPayload } from "./aes";
+// Export for backward compatibility
+import { ImportRoomKeyProgressData } from "../crypto-api";
 
-export interface Curve25519SessionData {
-    ciphertext: string;
-    ephemeral: string;
-    mac: string;
-}
+export type {
+    Curve25519AuthData as ICurve25519AuthData,
+    Aes256AuthData as IAes256AuthData,
+    KeyBackupInfo as IKeyBackupInfo,
+    Curve25519SessionData,
+    KeyBackupSession as IKeyBackupSession,
+    KeyBackupRoomSessions as IKeyBackupRoomSessions,
+} from "../crypto-api/keybackup";
 
-export interface IKeyBackupSession {
-    first_message_index: number; // eslint-disable-line camelcase
-    forwarded_count: number; // eslint-disable-line camelcase
-    is_verified: boolean; // eslint-disable-line camelcase
-    session_data: Curve25519SessionData | IEncryptedPayload; // eslint-disable-line camelcase
-}
-
-export interface IKeyBackupRoomSessions {
-    [sessionId: string]: IKeyBackupSession;
-}
-
-/* eslint-disable camelcase */
-export interface ICurve25519AuthData {
-    public_key: string;
-    private_key_salt?: string;
-    private_key_iterations?: number;
-    private_key_bits?: number;
-}
-
-export interface IAes256AuthData {
-    iv: string;
-    mac: string;
-    private_key_salt?: string;
-    private_key_iterations?: number;
-}
-
-export interface IKeyBackupInfo {
-    algorithm: string;
-    auth_data: ISigned & (ICurve25519AuthData | IAes256AuthData);
-    count?: number;
-    etag?: string;
-    version?: string; // number contained within
-}
 /* eslint-enable camelcase */
 
 export interface IKeyBackupPrepareOpts {
+    /**
+     * Whether to use Secure Secret Storage to store the key encrypting key backups.
+     * Optional, defaults to false.
+     */
     secureSecretStorage: boolean;
 }
 
@@ -69,5 +43,5 @@ export interface IKeyBackupRestoreResult {
 
 export interface IKeyBackupRestoreOpts {
     cacheCompleteCallback?: () => void;
-    progressCallback?: (progress: { stage: string }) => void;
+    progressCallback?: (progress: ImportRoomKeyProgressData) => void;
 }

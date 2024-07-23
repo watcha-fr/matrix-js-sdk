@@ -16,11 +16,12 @@ limitations under the License.
 
 import { IContent, MatrixClient, MatrixEvent } from "../../../src";
 import { Room } from "../../../src/models/room";
-import { IEncryptedFile, RelationType, UNSTABLE_MSC3089_BRANCH } from "../../../src/@types/event";
+import { RelationType, UNSTABLE_MSC3089_BRANCH } from "../../../src/@types/event";
 import { EventTimelineSet } from "../../../src/models/event-timeline-set";
 import { EventTimeline } from "../../../src/models/event-timeline";
 import { MSC3089Branch } from "../../../src/models/MSC3089Branch";
 import { MSC3089TreeSpace } from "../../../src/models/MSC3089TreeSpace";
+import { EncryptedFile } from "../../../src/@types/media";
 
 describe("MSC3089Branch", () => {
     let client: MatrixClient;
@@ -50,23 +51,27 @@ describe("MSC3089Branch", () => {
                 }
             },
         };
-        indexEvent = ({
+        indexEvent = {
             getRoomId: () => branchRoomId,
             getStateKey: () => fileEventId,
-        });
+        };
         directory = new MSC3089TreeSpace(client, branchRoomId);
         branch = new MSC3089Branch(client, indexEvent, directory);
-        branch2 = new MSC3089Branch(client, {
-            getRoomId: () => branchRoomId,
-            getStateKey: () => fileEventId2,
-        } as MatrixEvent, directory);
+        branch2 = new MSC3089Branch(
+            client,
+            {
+                getRoomId: () => branchRoomId,
+                getStateKey: () => fileEventId2,
+            } as MatrixEvent,
+            directory,
+        );
     });
 
-    it('should know the file event ID', () => {
+    it("should know the file event ID", () => {
         expect(branch.id).toEqual(fileEventId);
     });
 
-    it('should know if the file is active or not', () => {
+    it("should know if the file is active or not", () => {
         indexEvent.getContent = () => ({});
         expect(branch.isActive).toBe(false);
         indexEvent.getContent = () => ({ active: false });
@@ -77,15 +82,16 @@ describe("MSC3089Branch", () => {
         expect(branch.isActive).toBe(false);
     });
 
-    it('should be able to delete the file', async () => {
+    it("should be able to delete the file", async () => {
         const eventIdOrder = [fileEventId, fileEventId2];
 
-        const stateFn = jest.fn()
+        const stateFn = jest
+            .fn()
             .mockImplementation((roomId: string, eventType: string, content: any, stateKey: string) => {
                 expect(roomId).toEqual(branchRoomId);
                 expect(eventType).toEqual(UNSTABLE_MSC3089_BRANCH.unstable); // test that we're definitely using the unstable value
                 expect(content).toMatchObject({});
-                expect(content['active']).toBeUndefined();
+                expect(content["active"]).toBeUndefined();
                 expect(stateKey).toEqual(eventIdOrder[stateFn.mock.calls.length - 1]);
 
                 return Promise.resolve(); // return value not used
@@ -109,7 +115,7 @@ describe("MSC3089Branch", () => {
         expect(redactFn).toHaveBeenCalledTimes(2);
     });
 
-    it('should know its name', async () => {
+    it("should know its name", async () => {
         const name = "My File.txt";
         indexEvent.getContent = () => ({ active: true, name: name });
 
@@ -118,10 +124,11 @@ describe("MSC3089Branch", () => {
         expect(res).toEqual(name);
     });
 
-    it('should be able to change its name', async () => {
+    it("should be able to change its name", async () => {
         const name = "My File.txt";
         indexEvent.getContent = () => ({ active: true, retained: true });
-        const stateFn = jest.fn()
+        const stateFn = jest
+            .fn()
             .mockImplementation((roomId: string, eventType: string, content: any, stateKey: string) => {
                 expect(roomId).toEqual(branchRoomId);
                 expect(eventType).toEqual(UNSTABLE_MSC3089_BRANCH.unstable); // test that we're definitely using the unstable value
@@ -141,7 +148,7 @@ describe("MSC3089Branch", () => {
         expect(stateFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should be v1 by default', () => {
+    it("should be v1 by default", () => {
         indexEvent.getContent = () => ({ active: true });
 
         const res = branch.version;
@@ -149,7 +156,7 @@ describe("MSC3089Branch", () => {
         expect(res).toEqual(1);
     });
 
-    it('should be vN when set', () => {
+    it("should be vN when set", () => {
         indexEvent.getContent = () => ({ active: true, version: 3 });
 
         const res = branch.version;
@@ -157,7 +164,7 @@ describe("MSC3089Branch", () => {
         expect(res).toEqual(3);
     });
 
-    it('should be unlocked by default', async () => {
+    it("should be unlocked by default", async () => {
         indexEvent.getContent = () => ({ active: true });
 
         const res = branch.isLocked();
@@ -165,7 +172,7 @@ describe("MSC3089Branch", () => {
         expect(res).toEqual(false);
     });
 
-    it('should use lock status from index event', async () => {
+    it("should use lock status from index event", async () => {
         indexEvent.getContent = () => ({ active: true, locked: true });
 
         const res = branch.isLocked();
@@ -173,10 +180,11 @@ describe("MSC3089Branch", () => {
         expect(res).toEqual(true);
     });
 
-    it('should be able to change its locked status', async () => {
+    it("should be able to change its locked status", async () => {
         const locked = true;
         indexEvent.getContent = () => ({ active: true, retained: true });
-        const stateFn = jest.fn()
+        const stateFn = jest
+            .fn()
             .mockImplementation((roomId: string, eventType: string, content: any, stateKey: string) => {
                 expect(roomId).toEqual(branchRoomId);
                 expect(eventType).toEqual(UNSTABLE_MSC3089_BRANCH.unstable); // test that we're definitely using the unstable value
@@ -196,16 +204,17 @@ describe("MSC3089Branch", () => {
         expect(stateFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should be able to return event information', async () => {
+    it("should be able to return event information", async () => {
         const mxcLatter = "example.org/file";
         const fileContent = { isFile: "not quite", url: "mxc://" + mxcLatter };
         const fileEvent = { getId: () => fileEventId, getOriginalContent: () => ({ file: fileContent }) };
-        staticRoom.getUnfilteredTimelineSet = () => ({
-            findEventById: (eventId) => {
-                expect(eventId).toEqual(fileEventId);
-                return fileEvent;
-            },
-        }) as EventTimelineSet;
+        staticRoom.getUnfilteredTimelineSet = () =>
+            ({
+                findEventById: (eventId) => {
+                    expect(eventId).toEqual(fileEventId);
+                    return fileEvent;
+                },
+            }) as EventTimelineSet;
         client.mxcUrlToHttp = (mxc: string) => {
             expect(mxc).toEqual("mxc://" + mxcLatter);
             return `https://example.org/_matrix/media/v1/download/${mxcLatter}`;
@@ -217,20 +226,21 @@ describe("MSC3089Branch", () => {
         expect(res).toMatchObject({
             info: fileContent,
             // Escape regex from MDN guides: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
-            httpUrl: expect.stringMatching(`.+${mxcLatter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+            httpUrl: expect.stringMatching(`.+${mxcLatter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
         });
     });
 
-    it('should be able to return the event object', async () => {
+    it("should be able to return the event object", async () => {
         const mxcLatter = "example.org/file";
         const fileContent = { isFile: "not quite", url: "mxc://" + mxcLatter };
         const fileEvent = { getId: () => fileEventId, getOriginalContent: () => ({ file: fileContent }) };
-        staticRoom.getUnfilteredTimelineSet = () => ({
-            findEventById: (eventId) => {
-                expect(eventId).toEqual(fileEventId);
-                return fileEvent;
-            },
-        }) as EventTimelineSet;
+        staticRoom.getUnfilteredTimelineSet = () =>
+            ({
+                findEventById: (eventId) => {
+                    expect(eventId).toEqual(fileEventId);
+                    return fileEvent;
+                },
+            }) as EventTimelineSet;
         client.mxcUrlToHttp = (mxc: string) => {
             expect(mxc).toEqual("mxc://" + mxcLatter);
             return `https://example.org/_matrix/media/v1/download/${mxcLatter}`;
@@ -242,24 +252,27 @@ describe("MSC3089Branch", () => {
         expect(res).toBe(fileEvent);
     });
 
-    it('should create new versions of itself', async () => {
+    it("should create new versions of itself", async () => {
         const canaryName = "canary";
         const canaryContents = "contents go here";
-        const canaryFile = {} as IEncryptedFile;
+        const canaryFile = {} as EncryptedFile;
         const canaryAddl = { canary: true };
         indexEvent.getContent = () => ({ active: true, retained: true });
         const stateKeyOrder = [fileEventId2, fileEventId];
-        const stateFn = jest.fn()
+        const stateFn = jest
+            .fn()
             .mockImplementation((roomId: string, eventType: string, content: any, stateKey: string) => {
                 expect(roomId).toEqual(branchRoomId);
                 expect(eventType).toEqual(UNSTABLE_MSC3089_BRANCH.unstable); // test that we're definitely using the unstable value
                 expect(stateKey).toEqual(stateKeyOrder[stateFn.mock.calls.length - 1]);
                 if (stateKey === fileEventId) {
+                    // eslint-disable-next-line jest/no-conditional-expect
                     expect(content).toMatchObject({
                         retained: true, // canary for copying state
                         active: false,
                     });
                 } else if (stateKey === fileEventId2) {
+                    // eslint-disable-next-line jest/no-conditional-expect
                     expect(content).toMatchObject({
                         active: true,
                         version: 2,
@@ -273,26 +286,23 @@ describe("MSC3089Branch", () => {
             });
         client.sendStateEvent = stateFn;
 
-        const createFn = jest.fn().mockImplementation((
-            name: string,
-            contents: ArrayBuffer,
-            info: Partial<IEncryptedFile>,
-            addl: IContent,
-        ) => {
-            expect(name).toEqual(canaryName);
-            expect(contents).toBe(canaryContents);
-            expect(info).toBe(canaryFile);
-            expect(addl).toMatchObject({
-                ...canaryAddl,
-                "m.new_content": true,
-                "m.relates_to": {
-                    "rel_type": RelationType.Replace,
-                    "event_id": fileEventId,
-                },
-            });
+        const createFn = jest
+            .fn()
+            .mockImplementation((name: string, contents: ArrayBuffer, info: Partial<EncryptedFile>, addl: IContent) => {
+                expect(name).toEqual(canaryName);
+                expect(contents).toBe(canaryContents);
+                expect(info).toBe(canaryFile);
+                expect(addl).toMatchObject({
+                    ...canaryAddl,
+                    "m.new_content": true,
+                    "m.relates_to": {
+                        rel_type: RelationType.Replace,
+                        event_id: fileEventId,
+                    },
+                });
 
-            return Promise.resolve({ event_id: fileEventId2 });
-        });
+                return Promise.resolve({ event_id: fileEventId2 });
+            });
         directory.createFile = createFn;
 
         await branch.createNewVersion(canaryName, canaryContents, canaryFile, canaryAddl);
@@ -301,20 +311,26 @@ describe("MSC3089Branch", () => {
         expect(createFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should fetch file history', async () => {
-        branch2.getFileEvent = () => Promise.resolve({
-            replacingEventId: () => undefined,
-            getId: () => fileEventId2,
-        } as MatrixEvent);
-        branch.getFileEvent = () => Promise.resolve({
-            replacingEventId: () => fileEventId2,
-            getId: () => fileEventId,
-        } as MatrixEvent);
+    it("should fetch file history", async () => {
+        branch2.getFileEvent = () =>
+            Promise.resolve({
+                replacingEventId: () => undefined,
+                getId: () => fileEventId2,
+            } as MatrixEvent);
+        branch.getFileEvent = () =>
+            Promise.resolve({
+                replacingEventId: () => fileEventId2,
+                getId: () => fileEventId,
+            } as MatrixEvent);
 
-        const events = [await branch.getFileEvent(), await branch2.getFileEvent(), {
-            replacingEventId: (): string => null,
-            getId: () => "$unknown",
-        }];
+        const events = [
+            await branch.getFileEvent(),
+            await branch2.getFileEvent(),
+            {
+                replacingEventId: (): string | undefined => undefined,
+                getId: () => "$unknown",
+            },
+        ];
         staticRoom.getLiveTimeline = () => ({ getEvents: () => events }) as EventTimeline;
 
         directory.getFile = (evId: string) => {
@@ -323,9 +339,6 @@ describe("MSC3089Branch", () => {
         };
 
         const results = await branch2.getVersionHistory();
-        expect(results).toMatchObject([
-            branch2,
-            branch,
-        ]);
+        expect(results).toMatchObject([branch2, branch]);
     });
 });

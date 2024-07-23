@@ -23,32 +23,25 @@ import { Room } from "./room";
 
 export class RelationsContainer {
     // A tree of objects to access a set of related children for an event, as in:
-    // this.relations[parentEventId][relationType][relationEventType]
-    private relations: {
-        [parentEventId: string]: {
-            [relationType: RelationType | string]: {
-                [eventType: EventType | string]: Relations;
-            };
-        };
-    } = {};
+    // this.relations.get(parentEventId).get(relationType).get(relationEventType)
+    private relations = new Map<string, Map<RelationType | string, Map<EventType | string, Relations>>>();
 
-    constructor(private readonly client: MatrixClient, private readonly room?: Room) {
-    }
+    public constructor(
+        private readonly client: MatrixClient,
+        private readonly room?: Room,
+    ) {}
 
     /**
      * Get a collection of child events to a given event in this timeline set.
      *
-     * @param {String} eventId
-     * The ID of the event that you'd like to access child events for.
+     * @param eventId - The ID of the event that you'd like to access child events for.
      * For example, with annotations, this would be the ID of the event being annotated.
-     * @param {String} relationType
-     * The type of relationship involved, such as "m.annotation", "m.reference", "m.replace", etc.
-     * @param {String} eventType
-     * The relation event's type, such as "m.reaction", etc.
-     * @throws If <code>eventId</code>, <code>relationType</code> or <code>eventType</code>
+     * @param relationType - The type of relationship involved, such as "m.annotation", "m.reference", "m.replace", etc.
+     * @param eventType - The relation event's type, such as "m.reaction", etc.
+     * @throws If `eventId</code>, <code>relationType</code> or <code>eventType`
      * are not valid.
      *
-     * @returns {?Relations}
+     * @returns
      * A container for relation events or undefined if there are no relation events for
      * the relationType.
      */
@@ -57,14 +50,15 @@ export class RelationsContainer {
         relationType: RelationType | string,
         eventType: EventType | string,
     ): Relations | undefined {
-        return this.relations[eventId]?.[relationType]?.[eventType];
+        return this.relations.get(eventId)?.get(relationType)?.get(eventType);
     }
 
     public getAllChildEventsForEvent(parentEventId: string): MatrixEvent[] {
-        const relationsForEvent = this.relations[parentEventId] ?? {};
+        const relationsForEvent =
+            this.relations.get(parentEventId) ?? new Map<RelationType | string, Map<EventType | string, Relations>>();
         const events: MatrixEvent[] = [];
-        for (const relationsRecord of Object.values(relationsForEvent)) {
-            for (const relations of Object.values(relationsRecord)) {
+        for (const relationsRecord of relationsForEvent.values()) {
+            for (const relations of relationsRecord.values()) {
                 events.push(...relations.getRelations());
             }
         }
@@ -76,14 +70,14 @@ export class RelationsContainer {
      * Child events can point to other child events as their parent, so this method may be
      * called for events which are also logically child events.
      *
-     * @param {MatrixEvent} event The event to check as relation target.
+     * @param event - The event to check as relation target.
      */
     public aggregateParentEvent(event: MatrixEvent): void {
-        const relationsForEvent = this.relations[event.getId()];
+        const relationsForEvent = this.relations.get(event.getId()!);
         if (!relationsForEvent) return;
 
-        for (const relationsWithRelType of Object.values(relationsForEvent)) {
-            for (const relationsWithEventType of Object.values(relationsWithRelType)) {
+        for (const relationsWithRelType of relationsForEvent.values()) {
+            for (const relationsWithEventType of relationsWithRelType.values()) {
                 relationsWithEventType.setTargetEvent(event);
             }
         }
@@ -92,8 +86,8 @@ export class RelationsContainer {
     /**
      * Add relation events to the relevant relation collection.
      *
-     * @param {MatrixEvent} event The new child event to be aggregated.
-     * @param {EventTimelineSet} timelineSet The event timeline set within which to search for the related event if any.
+     * @param event - The new child event to be aggregated.
+     * @param timelineSet - The event timeline set within which to search for the related event if any.
      */
     public aggregateChildEvent(event: MatrixEvent, timelineSet?: EventTimelineSet): void {
         if (event.isRedacted() || event.status === EventStatus.CANCELLED) {
@@ -103,7 +97,7 @@ export class RelationsContainer {
         const relation = event.getRelation();
         if (!relation) return;
 
-        const onEventDecrypted = () => {
+        const onEventDecrypted = (): void => {
             if (event.isDecryptionFailure()) {
                 // This could for example happen if the encryption keys are not yet available.
                 // The event may still be decrypted later. Register the listener again.
@@ -123,28 +117,28 @@ export class RelationsContainer {
         const { event_id: relatesToEventId, rel_type: relationType } = relation;
         const eventType = event.getType();
 
-        let relationsForEvent = this.relations[relatesToEventId];
+        let relationsForEvent = this.relations.get(relatesToEventId!);
         if (!relationsForEvent) {
-            relationsForEvent = this.relations[relatesToEventId] = {};
+            relationsForEvent = new Map<RelationType | string, Map<EventType | string, Relations>>();
+            this.relations.set(relatesToEventId!, relationsForEvent);
         }
 
-        let relationsWithRelType = relationsForEvent[relationType];
+        let relationsWithRelType = relationsForEvent.get(relationType!);
         if (!relationsWithRelType) {
-            relationsWithRelType = relationsForEvent[relationType] = {};
+            relationsWithRelType = new Map<EventType | string, Relations>();
+            relationsForEvent.set(relationType!, relationsWithRelType);
         }
 
-        let relationsWithEventType = relationsWithRelType[eventType];
+        let relationsWithEventType = relationsWithRelType.get(eventType);
         if (!relationsWithEventType) {
-            relationsWithEventType = relationsWithRelType[eventType] = new Relations(
-                relationType,
-                eventType,
-                this.client,
-            );
+            relationsWithEventType = new Relations(relationType!, eventType, this.client);
+            relationsWithRelType.set(eventType, relationsWithEventType);
 
             const room = this.room ?? timelineSet?.room;
-            const relatesToEvent = timelineSet?.findEventById(relatesToEventId)
-                ?? room?.findEventById(relatesToEventId)
-                ?? room?.getPendingEvent(relatesToEventId);
+            const relatesToEvent =
+                timelineSet?.findEventById(relatesToEventId!) ??
+                room?.findEventById(relatesToEventId!) ??
+                room?.getPendingEvent(relatesToEventId!);
             if (relatesToEvent) {
                 relationsWithEventType.setTargetEvent(relatesToEvent);
             }

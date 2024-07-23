@@ -15,13 +15,11 @@ limitations under the License.
 */
 
 /**
- * @module crypto/RoomList
- *
  * Manages the list of encrypted rooms
  */
 
-import { CryptoStore } from './store/base';
-import { IndexedDBCryptoStore } from './store/indexeddb-crypto-store';
+import { CryptoStore } from "./store/base";
+import { IndexedDBCryptoStore } from "./store/indexeddb-crypto-store";
 
 /* eslint-disable camelcase */
 export interface IRoomEncryption {
@@ -32,25 +30,27 @@ export interface IRoomEncryption {
 /* eslint-enable camelcase */
 
 /**
- * @alias module:crypto/RoomList
+ * Information about the encryption settings of rooms. Loads this information
+ * from the supplied crypto store when `init()` is called, and saves it to the
+ * crypto store whenever it is updated via `setRoomEncryption()`. Can supply
+ * full information about a room's encryption via `getRoomEncryption()`, or just
+ * answer whether or not a room has encryption via `isRoomEncrypted`.
  */
 export class RoomList {
     // Object of roomId -> room e2e info object (body of the m.room.encryption event)
     private roomEncryption: Record<string, IRoomEncryption> = {};
 
-    constructor(private readonly cryptoStore: CryptoStore) {}
+    public constructor(private readonly cryptoStore?: CryptoStore) {}
 
     public async init(): Promise<void> {
-        await this.cryptoStore.doTxn(
-            'readwrite', [IndexedDBCryptoStore.STORE_ROOMS], (txn) => {
-                this.cryptoStore.getEndToEndRooms(txn, (result) => {
-                    this.roomEncryption = result;
-                });
-            },
-        );
+        await this.cryptoStore!.doTxn("readwrite", [IndexedDBCryptoStore.STORE_ROOMS], (txn) => {
+            this.cryptoStore!.getEndToEndRooms(txn, (result) => {
+                this.roomEncryption = result;
+            });
+        });
     }
 
-    public getRoomEncryption(roomId: string): IRoomEncryption {
+    public getRoomEncryption(roomId: string): IRoomEncryption | null {
         return this.roomEncryption[roomId] || null;
     }
 
@@ -63,10 +63,8 @@ export class RoomList {
         // as it prevents the Crypto::setRoomEncryption from calling
         // this twice for consecutive m.room.encryption events
         this.roomEncryption[roomId] = roomInfo;
-        await this.cryptoStore.doTxn(
-            'readwrite', [IndexedDBCryptoStore.STORE_ROOMS], (txn) => {
-                this.cryptoStore.storeEndToEndRoom(roomId, roomInfo, txn);
-            },
-        );
+        await this.cryptoStore!.doTxn("readwrite", [IndexedDBCryptoStore.STORE_ROOMS], (txn) => {
+            this.cryptoStore!.storeEndToEndRoom(roomId, roomInfo, txn);
+        });
     }
 }

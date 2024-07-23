@@ -30,6 +30,8 @@ declare global {
     namespace NodeJS {
         interface Global {
             localStorage: Storage;
+            // marker variable used to detect both the browser & node entrypoints being used at once
+            __js_sdk_entrypoint: unknown;
         }
     }
 
@@ -49,18 +51,22 @@ declare global {
     }
 
     interface DesktopCapturerConstraints {
-        audio: boolean | {
-            mandatory: {
-                chromeMediaSource: string;
-                chromeMediaSourceId: string;
-            };
-        };
-        video: boolean | {
-            mandatory: {
-                chromeMediaSource: string;
-                chromeMediaSourceId: string;
-            };
-        };
+        audio:
+            | boolean
+            | {
+                  mandatory: {
+                      chromeMediaSource: string;
+                      chromeMediaSourceId: string;
+                  };
+              };
+        video:
+            | boolean
+            | {
+                  mandatory: {
+                      chromeMediaSource: string;
+                      chromeMediaSourceId: string;
+                  };
+              };
     }
 
     interface DummyInterfaceWeShouldntBeUsingThis {}
@@ -89,5 +95,21 @@ declare global {
         // (https://github.com/microsoft/TypeScript-DOM-lib-generator/issues/1029),
         // but we still need this for MatrixCall::getRidOfRTXCodecs()
         setCodecPreferences(codecs: RTCRtpCodecCapability[]): void;
+    }
+
+    interface RequestInit {
+        /**
+         * Specifies the priority of the fetch request relative to other requests of the same type.
+         * Must be one of the following strings:
+         *   high: A high priority fetch request relative to other requests of the same type.
+         *   low: A low priority fetch request relative to other requests of the same type.
+         *   auto: Automatically determine the priority of the fetch request relative to other requests of the same type (default).
+         *
+         * @see https://html.spec.whatwg.org/multipage/urls-and-fetching.html#fetch-priority-attribute
+         * @see https://github.com/microsoft/TypeScript/issues/54472
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API#browser_compatibility
+         * Not yet supported in Safari or Firefox
+         */
+        priority?: "high" | "low" | "auto";
     }
 }

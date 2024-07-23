@@ -22,8 +22,8 @@ export interface SDPStreamMetadata {
 }
 
 export interface CallCapabilities {
-    'm.call.transferee': boolean;
-    'm.call.dtmf': boolean;
+    "m.call.transferee": boolean;
+    "m.call.dtmf": boolean;
 }
 
 export interface CallReplacesTarget {
@@ -34,8 +34,11 @@ export interface CallReplacesTarget {
 
 export interface MCallBase {
     call_id: string;
+    conf_id?: string;
     version: string | number;
     party_id?: string;
+    sender_session_id?: string;
+    dest_session_id?: string;
 }
 
 export interface MCallAnswer extends MCallBase {
@@ -53,6 +56,9 @@ export interface MCallInviteNegotiate extends MCallBase {
     description: RTCSessionDescription;
     lifetime: number;
     capabilities?: CallCapabilities;
+    invitee?: string;
+    sender_session_id?: string;
+    dest_session_id?: string;
     [SDPStreamMetadataKey]: SDPStreamMetadata;
 }
 
@@ -77,7 +83,7 @@ export interface MCAllAssertedIdentity extends MCallBase {
 }
 
 export interface MCallCandidates extends MCallBase {
-    candidates: RTCIceCandidate[];
+    candidates: Omit<RTCIceCandidateInit, "usernameFragment">[];
 }
 
 export interface MCallHangupReject extends MCallBase {

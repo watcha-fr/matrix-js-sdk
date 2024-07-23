@@ -1,56 +1,108 @@
 name: Static Analysis
 on:
-  pull_request: { }
-  push:
-    branches: [ develop, master ]
+    pull_request: {}
+    merge_group:
+        types: [checks_requested]
+    push:
+        branches: [develop, master]
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 jobs:
-  ts_lint:
-    name: "Typescript Syntax Check"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+    ts_lint:
+        name: "Typescript Syntax Check"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
-        with:
-          cache: 'yarn'
+            - uses: actions/setup-node@v4
+              with:
+                  cache: "yarn"
 
-      - name: Install Deps
-        run: "yarn install"
+            - name: Install Deps
+              run: "yarn install"
 
-      - name: Typecheck
-        run: "yarn run lint:types"
+            - name: Typecheck
+              run: "yarn run lint:types"
 
-  js_lint:
-    name: "ESLint"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+            - name: Switch js-sdk to release mode
+              run: |
+                  scripts/switch_package_to_release.js
+                  yarn install
+                  yarn run build:compile
+                  yarn run build:types
 
-      - uses: actions/setup-node@v3
-        with:
-          cache: 'yarn'
+            - name: Typecheck (release mode)
+              run: "yarn run lint:types"
 
-      - name: Install Deps
-        run: "yarn install"
+    js_lint:
+        name: "ESLint"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Run Linter
-        run: "yarn run lint:js"
+            - uses: actions/setup-node@v4
+              with:
+                  cache: "yarn"
 
-  docs:
-    name: "JSDoc Checker"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+            - name: Install Deps
+              run: "yarn install"
 
-      - uses: actions/setup-node@v3
-        with:
-          cache: 'yarn'
+            - name: Run Linter
+              run: "yarn run lint:js"
 
-      - name: Install Deps
-        run: "yarn install"
+    workflow_lint:
+        name: "Workflow Lint"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Generate Docs
-        run: "yarn run gendoc"
+            - uses: actions/setup-node@v4
+              with:
+                  cache: "yarn"
+
+            - name: Install Deps
+              run: "yarn install --frozen-lockfile"
+
+            - name: Run Linter
+              run: "yarn lint:workflows"
+
+    docs:
+        name: "JSDoc Checker"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  cache: "yarn"
+
+            - name: Install Deps
+              run: "yarn install"
+
+            - name: Generate Docs
+              run: "yarn run gendoc --treatWarningsAsErrors"
+
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: docs
+                  path: _docs
+                  # We'll only use this in a workflow_run, then we're done with it
+                  retention-days: 1
+
+    analyse_dead_code:
+        name: "Analyse Dead Code"
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  cache: "yarn"
+
+            - name: Install Deps
+              run: "yarn install --frozen-lockfile"
+
+            - name: Run linter
+              run: "yarn run lint:knip"

@@ -15,47 +15,96 @@ limitations under the License.
 */
 
 import { SDPStreamMetadataPurpose } from "../../../src/webrtc/callEventTypes";
-import { CallFeed, CallFeedEvent } from "../../../src/webrtc/callFeed";
-import { MockMediaStream, MockMediaStreamTrack } from "../../test-utils/webrtc";
+import { CallFeed } from "../../../src/webrtc/callFeed";
 import { TestClient } from "../../TestClient";
+import { MockMatrixCall, MockMediaStream, MockMediaStreamTrack } from "../../test-utils/webrtc";
+import { CallEvent, CallState } from "../../../src/webrtc/call";
 
 describe("CallFeed", () => {
-    const roomId = "room_id";
-
-    let client;
+    const roomId = "room1";
+    let client: TestClient;
+    let call: MockMatrixCall;
+    let feed: CallFeed;
 
     beforeEach(() => {
         client = new TestClient("@alice:foo", "somedevice", "token", undefined, {});
+        call = new MockMatrixCall(roomId);
+
+        feed = new CallFeed({
+            client: client.client,
+            call: call.typed(),
+            roomId,
+            userId: "user1",
+            // @ts-ignore Mock
+            stream: new MockMediaStream("stream1"),
+            purpose: SDPStreamMetadataPurpose.Usermedia,
+            audioMuted: false,
+            videoMuted: false,
+        });
     });
 
     afterEach(() => {
         client.stop();
     });
 
-    it("should handle stream replacement", () => {
-        const feedNewStreamCallback = jest.fn();
-        const feed = new CallFeed({
-            client,
-            roomId,
-            userId: "user1",
-            // @ts-ignore Mock
-            stream: new MockMediaStream("stream1"),
-            id: "id",
-            purpose: SDPStreamMetadataPurpose.Usermedia,
-            audioMuted: false,
-            videoMuted: false,
+    describe("muting", () => {
+        describe("muting by default", () => {
+            it("should mute audio by default", () => {
+                expect(feed.isAudioMuted()).toBeTruthy();
+            });
+
+            it("should mute video by default", () => {
+                expect(feed.isVideoMuted()).toBeTruthy();
+            });
         });
-        feed.on(CallFeedEvent.NewStream, feedNewStreamCallback);
 
-        const replacementStream = new MockMediaStream("stream2");
-        // @ts-ignore Mock
-        feed.setNewStream(replacementStream);
-        expect(feedNewStreamCallback).toHaveBeenCalledWith(replacementStream);
-        expect(feed.stream).toBe(replacementStream);
+        describe("muting after adding a track", () => {
+            it("should un-mute audio", () => {
+                // @ts-ignore Mock
+                feed.stream.addTrack(new MockMediaStreamTrack("track", "audio", true));
+                expect(feed.isAudioMuted()).toBeFalsy();
+            });
 
-        feedNewStreamCallback.mockReset();
+            it("should un-mute video", () => {
+                // @ts-ignore Mock
+                feed.stream.addTrack(new MockMediaStreamTrack("track", "video", true));
+                expect(feed.isVideoMuted()).toBeFalsy();
+            });
+        });
 
-        replacementStream.addTrack(new MockMediaStreamTrack("track_id", "audio"));
-        expect(feedNewStreamCallback).toHaveBeenCalledWith(replacementStream);
+        describe("muting after calling setAudioVideoMuted()", () => {
+            it("should mute audio by default", () => {
+                // @ts-ignore Mock
+                feed.stream.addTrack(new MockMediaStreamTrack("track", "audio", true));
+                feed.setAudioVideoMuted(true, false);
+                expect(feed.isAudioMuted()).toBeTruthy();
+            });
+
+            it("should mute video by default", () => {
+                // @ts-ignore Mock
+                feed.stream.addTrack(new MockMediaStreamTrack("track", "video", true));
+                feed.setAudioVideoMuted(false, true);
+                expect(feed.isVideoMuted()).toBeTruthy();
+            });
+        });
+    });
+
+    describe("connected", () => {
+        it.each([true, false])("should always be connected, if isLocal()", (val: boolean) => {
+            // @ts-ignore
+            feed._connected = val;
+            jest.spyOn(feed, "isLocal").mockReturnValue(true);
+
+            expect(feed.connected).toBeTruthy();
+        });
+
+        it.each([
+            [CallState.Connected, true],
+            [CallState.Connecting, false],
+        ])("should react to call state, when !isLocal()", (state: CallState, expected: Boolean) => {
+            call.emit(CallEvent.State, state, CallState.InviteSent, call.typed());
+
+            expect(feed.connected).toBe(expected);
+        });
     });
 });
