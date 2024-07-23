@@ -69,12 +69,11 @@ import {
     MediaPrefix,
     Method,
     retryNetworkOperation,
-    UploadContentResponseType,
     TokenRefreshFunction,
     Upload,
     UploadOpts,
     UploadResponse,
-    PREFIX_WATCHA_NEXTCLOUD, // watcha+
+    WatchaPrefix, // watcha+
 } from "./http-api";
 import {
     Crypto,
@@ -8656,18 +8655,11 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
         userId: string,
         info?: string,
         // eslint-disable-next-line camelcase
-    ): Promise<{ avatar_url?: string, displayname?: string, email: string }> { // watcha+ until we have an IS
-        if (utils.isFunction(info)) {
-            callback = info as any as Callback; // legacy
-            info = undefined;
-        }
-
-        const path = info ?
-            utils.encodeUri("/profile/$userId/$info",
-                { $userId: userId, $info: info }) :
-            utils.encodeUri("/profile/$userId",
-                { $userId: userId });
-        return this.http.authedRequest(callback, Method.Get, path);
+    ): Promise<{ avatar_url?: string; displayname?: string }> {
+        const path = info
+            ? utils.encodeUri("/profile/$userId/$info", { $userId: userId, $info: info })
+            : utils.encodeUri("/profile/$userId", { $userId: userId });
+        return this.http.authedRequest(Method.Get, path);
     }
 
     /**
@@ -9803,8 +9795,8 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
      * @return {module:http-api.MatrixError} Rejects: with an error response.
      */
     public getOwnCalendars(): Promise<IOwnCalendars> {
-        return this.http.authedRequest(undefined, Method.Get, "/calendars", undefined, undefined, {
-            prefix: PREFIX_WATCHA_NEXTCLOUD,
+        return this.http.authedRequest(Method.Get, "/calendars", undefined, undefined, {
+            prefix: WatchaPrefix.NEXTCLOUD,
         });
     }
 
@@ -9817,8 +9809,8 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
         const path = utils.encodeUri("/calendars/$calendarId", {
             $calendarId: calendarId.toString(),
         });
-        return this.http.authedRequest(undefined, Method.Get, path, undefined, undefined, {
-            prefix: PREFIX_WATCHA_NEXTCLOUD,
+        return this.http.authedRequest(Method.Get, path, undefined, undefined, {
+            prefix: WatchaPrefix.NEXTCLOUD,
         });
     }
 
@@ -9831,22 +9823,22 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
         const path = utils.encodeUri("/calendars/$calendarId/top", {
             $calendarId: calendarId.toString(),
         });
-        return this.http.authedRequest(undefined, Method.Put, path, undefined, undefined, {
-            prefix: PREFIX_WATCHA_NEXTCLOUD,
+        return this.http.authedRequest(Method.Put, path, undefined, undefined, {
+            prefix: WatchaPrefix.NEXTCLOUD,
         });
     }
 
     /**
      * @param {string} roomId
-     * @param {number} calendarId Optional.
+     * @param {number | null} calendarId Optional.
      * @return {Promise<ISendEventResponse>}
      * @return {module:http-api.MatrixError} Rejects: with an error response.
      */
     public async setRoomCalendar(
         roomId: string,
-        calendarId: number = null,
-    ): Promise<ISendEventResponse> {
-        return this.sendStateEvent(roomId, CALENDAR_EVENT_TYPE, {
+        calendarId: number | null = null,
+        ): Promise<ISendEventResponse> {
+        return this.sendStateEvent(roomId, EventType.Calendar, {
             id: calendarId,
         });
     }
@@ -9861,7 +9853,7 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
         roomId: string,
         stateKey: string,
     ): Promise<ISendEventResponse> {
-        return this.sendStateEvent(roomId, CALENDAR_EVENT_TYPE, {}, stateKey);
+        return this.sendStateEvent(roomId, EventType.Calendar, {}, stateKey);
     }
     // +watcha
 

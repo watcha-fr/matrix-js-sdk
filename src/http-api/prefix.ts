@@ -46,3 +46,12 @@ export enum MediaPrefix {
      */
     V3 = "/_matrix/media/v3",
 }
+
+// watcha+
+export enum WatchaPrefix {
+    /**
+    * URI path for the Nextcloud integration API
+    */
+    NEXTCLOUD = "/_watcha/nextcloud",
+}
+// +watcha

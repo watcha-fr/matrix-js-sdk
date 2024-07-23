@@ -34,6 +34,7 @@ import {
     RoomTopicEventContent,
     SpaceChildEventContent,
     SpaceParentEventContent,
+    CalendarContent, // watcha+
 } from "./state_events";
 import {
     ExperimentalGroupCallRoomMemberState,
@@ -144,6 +145,9 @@ export enum EventType {
 
     // MatrixRTC events
     CallNotify = "org.matrix.msc4075.call.notify",
+
+    //Watcha
+    Calendar = "watcha.room.nextcloud_calendar", // watcha+
 }
 
 export enum RelationType {
@@ -363,4 +367,8 @@ export interface StateEvents {
 
     // MSC3672
     [M_BEACON_INFO.name]: MBeaconInfoEventContent;
+
+    // watcha+
+    [EventType.Calendar]: CalendarContent;
+    // +watcha
 }

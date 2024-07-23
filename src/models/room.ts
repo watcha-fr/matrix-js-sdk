@@ -3347,7 +3347,8 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
     }
 
     private roomNameGenerator(state: RoomNameState): string {
-        const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+ until https://github.com/matrix-org/matrix-js-sdk/issues/1309
+        const localStorageValue = localStorage.getItem('mx_local_settings'); // watcha+
+        const mxLocalSettings = localStorageValue ? JSON.parse(localStorageValue) : null; // watcha+ until https://github.com/matrix-org/matrix-js-sdk/issues/1309
         const isCurrentLangFr = mxLocalSettings?.language === "fr"; // watcha+
         if (this.client.roomNameGenerator) {
             const name = this.client.roomNameGenerator(this.roomId, state);
@@ -3798,7 +3799,8 @@ export type RoomNameState = EmptyRoomNameState | GeneratedRoomNameState | Actual
 
 // Can be overriden by IMatrixClientCreateOpts::memberNamesToRoomNameFn
 function memberNamesToRoomName(names: string[], count: number): string {
-    const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+
+    const localStorageValue = localStorage.getItem('mx_local_settings'); // watcha+
+    const mxLocalSettings = localStorageValue ? JSON.parse(localStorageValue) : null; // watcha+
     if (mxLocalSettings?.language === "fr") return memberNamesToRoomNameFr(names, count); // watcha+
     const countWithoutMe = count - 1;
     if (!names.length) {

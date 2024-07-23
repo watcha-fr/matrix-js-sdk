@@ -143,3 +143,9 @@ export interface PolicyRuleEventContent {
     reason: string;
     recommendation: PolicyRecommendation;
 }
+
+// watcha+
+export interface CalendarContent{
+    id?: number | null;
+}
+// +watcha
