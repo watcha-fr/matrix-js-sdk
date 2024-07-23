@@ -3243,6 +3243,7 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
      * @returns true if the user should be permitted to issue invites for this room.
      */
     public canInvite(userId: string): boolean {
+        if (this.client.isPartner()) return false; // watcha+
         let canInvite = this.getMyMembership() === KnownMembership.Join;
         const powerLevelsEvent = this.currentState.getStateEvents(EventType.RoomPowerLevels, "");
         const powerLevels = powerLevelsEvent && powerLevelsEvent.getContent();
@@ -3346,6 +3347,8 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
     }
 
     private roomNameGenerator(state: RoomNameState): string {
+        const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+ until https://github.com/matrix-org/matrix-js-sdk/issues/1309
+        const isCurrentLangFr = mxLocalSettings?.language === "fr"; // watcha+
         if (this.client.roomNameGenerator) {
             const name = this.client.roomNameGenerator(this.roomId, state);
             if (name !== null) {
@@ -3359,14 +3362,23 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
             case RoomNameType.Generated:
                 switch (state.subtype) {
                     case "Inviting":
+                        // watcha+
+                        if(isCurrentLangFr){
+                            return state.count - 1 === 1
+                        ? `Invitation envoyée (${memberNamesToRoomName(state.names, state.count)})`
+                        : `Invitations envoyées (${memberNamesToRoomName(state.names, state.count)})`;
+                        }
+                        // +watcha
                         return `Inviting ${memberNamesToRoomName(state.names, state.count)}`;
                     default:
                         return memberNamesToRoomName(state.names, state.count);
                 }
             case RoomNameType.EmptyRoom:
                 if (state.oldName) {
+                    if(isCurrentLangFr) return `Salon vide (auparavant ${state.oldName})` // watcha+
                     return `Empty room (was ${state.oldName})`;
                 } else {
+                    if(isCurrentLangFr) return `Salon vide` // watcha+
                     return "Empty room";
                 }
         }
@@ -3463,7 +3475,6 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
                 const thirdPartyNames = thirdPartyInvites.map((i) => {
                     return i.getContent().display_name;
                 });
-
                 return this.roomNameGenerator({
                     type: RoomNameType.Generated,
                     subtype: "Inviting",
@@ -3787,6 +3798,8 @@ export type RoomNameState = EmptyRoomNameState | GeneratedRoomNameState | Actual
 
 // Can be overriden by IMatrixClientCreateOpts::memberNamesToRoomNameFn
 function memberNamesToRoomName(names: string[], count: number): string {
+    const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+
+    if (mxLocalSettings?.language === "fr") return memberNamesToRoomNameFr(names, count); // watcha+
     const countWithoutMe = count - 1;
     if (!names.length) {
         return "Empty room";
@@ -3803,3 +3816,23 @@ function memberNamesToRoomName(names: string[], count: number): string {
         }
     }
 }
+
+// watcha+
+function memberNamesToRoomNameFr(names: string[], count: number): string {
+    const countWithoutMe = count - 1;
+    if (!names.length) {
+        return "Salon vide";
+    } else if (names.length === 1 && countWithoutMe <= 1) {
+        return names[0];
+    } else if (names.length === 2 && countWithoutMe <= 2) {
+        return `${names[0]} et ${names[1]}`;
+    } else {
+        const plural = countWithoutMe > 1;
+        if (plural) {
+            return `${names[0]} et ${countWithoutMe} autres`;
+        } else {
+            return `${names[0]} et 1 autre`;
+        }
+    }
+}
+// +watcha
