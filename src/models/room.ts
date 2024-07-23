@@ -3243,7 +3243,6 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
      * @returns true if the user should be permitted to issue invites for this room.
      */
     public canInvite(userId: string): boolean {
-        if (this.client.isPartner()) return false; // watcha+
         let canInvite = this.getMyMembership() === KnownMembership.Join;
         const powerLevelsEvent = this.currentState.getStateEvents(EventType.RoomPowerLevels, "");
         const powerLevels = powerLevelsEvent && powerLevelsEvent.getContent();
@@ -3383,8 +3382,6 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
      * @returns The calculated room name.
      */
     private calculateRoomName(userId: string, ignoreRoomNameEvent = false): string {
-        const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+ until https://github.com/matrix-org/matrix-js-sdk/issues/1309
-        const isCurrentLangFr = mxLocalSettings?.language === "fr"; // watcha+
         if (!ignoreRoomNameEvent) {
             // check for an alias, if any. for now, assume first alias is the
             // official one.
@@ -3467,13 +3464,6 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
                     return i.getContent().display_name;
                 });
 
-                // watcha+
-                if (isCurrentLangFr) {
-                    return thirdPartyNames.length === 1
-                        ? `Invitation envoyée (${memberNamesToRoomName(thirdPartyNames)})`
-                        : `Invitations envoyées (${memberNamesToRoomName(thirdPartyNames)})`;
-                }
-                // +watcha
                 return this.roomNameGenerator({
                     type: RoomNameType.Generated,
                     subtype: "Inviting",
@@ -3501,7 +3491,6 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
 
         let oldName: string | undefined;
         if (leftNames.length) {
-            if (isCurrentLangFr) return `Salon vide (auparavant ${memberNamesToRoomName(leftNames)})`; // watcha+
             oldName = this.roomNameGenerator({
                 type: RoomNameType.Generated,
                 names: leftNames,
@@ -3510,7 +3499,6 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
         }
 
         return this.roomNameGenerator({
-            if (isCurrentLangFr) return "Salon vide"; // watcha+
             type: RoomNameType.EmptyRoom,
             oldName,
         });
@@ -3668,38 +3656,137 @@ export class Room extends ReadReceipt<RoomEmittedEvents, RoomEventHandlerMap> {
         }
         event.applyVisibilityEvent(visibilityChange);
     }
+
+    /**
+     * Find when a client has gained thread capabilities by inspecting the oldest
+     * threaded receipt
+     * @returns the timestamp of the oldest threaded receipt
+     */
+    public getOldestThreadedReceiptTs(): number {
+        return this.oldestThreadedReceiptTs;
+    }
+
+    /**
+     * Determines if the given user has read a particular event ID with the known
+     * history of the room. This is not a definitive check as it relies only on
+     * what is available to the room at the time of execution.
+     *
+     * @param userId - The user ID to check the read state of.
+     * @param eventId - The event ID to check if the user read.
+     * @returns true if the user has read the event, false otherwise.
+     */
+    public hasUserReadEvent(userId: string, eventId: string): boolean {
+        return this.roomReceipts.hasUserReadEvent(userId, eventId);
+    }
+
+    /**
+     * Returns the most recent unthreaded receipt for a given user
+     * @param userId - the MxID of the User
+     * @returns an unthreaded Receipt. Can be undefined if receipts have been disabled
+     * or a user chooses to use private read receipts (or we have simply not received
+     * a receipt from this user yet).
+     */
+    public getLastUnthreadedReceiptFor(userId: string): Receipt | undefined {
+        return this.unthreadedReceipts.get(userId);
+    }
+
+    /**
+     * This issue should also be addressed on synapse's side and is tracked as part
+     * of https://github.com/matrix-org/synapse/issues/14837
+     *
+     *
+     * We consider a room  fully read if the current user has sent
+     * the last event in the live timeline of that context and if the read receipt
+     * we have on record matches.
+     * This also detects all unread threads and applies the same logic to those
+     * contexts
+     */
+    public fixupNotifications(userId: string): void {
+        super.fixupNotifications(userId);
+
+        const unreadThreads = this.getThreads().filter(
+            (thread) => this.getThreadUnreadNotificationCount(thread.id, NotificationCountType.Total) > 0,
+        );
+
+        for (const thread of unreadThreads) {
+            thread.fixupNotifications(userId);
+        }
+    }
+
+    /**
+     * Determine the order of two events in this room.
+     *
+     * In principle this should use the same order as the server, but in practice
+     * this is difficult for events that were not received over the Sync API. See
+     * MSC4033 for details.
+     *
+     * This implementation leans on the order of events within their timelines, and
+     * falls back to comparing event timestamps when they are in different
+     * timelines.
+     *
+     * See https://github.com/matrix-org/matrix-js-sdk/issues/3325 for where we are
+     * tracking the work to fix this.
+     *
+     * @param leftEventId - the id of the first event
+     * @param rightEventId - the id of the second event
+
+     * @returns -1 if left \< right, 1 if left \> right, 0 if left == right, null if
+     *          we can't tell (because we can't find the events).
+     */
+    public compareEventOrdering(leftEventId: string, rightEventId: string): number | null {
+        return compareEventOrdering(this, leftEventId, rightEventId);
+    }
+
+    /**
+     * Return true if this room has an `m.room.encryption` state event.
+     *
+     * If this returns `true`, events sent to this room should be encrypted (and `MatrixClient.sendEvent` and friends
+     * will encrypt outgoing events).
+     */
+    public hasEncryptionStateEvent(): boolean {
+        return Boolean(
+            this.getLiveTimeline().getState(EventTimeline.FORWARDS)?.getStateEvents(EventType.RoomEncryption, ""),
+        );
+    }
 }
 
 // a map from current event status to a list of allowed next statuses
 const ALLOWED_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
-    [EventStatus.ENCRYPTING]: [
-        EventStatus.SENDING,
-        EventStatus.NOT_SENT,
-        EventStatus.CANCELLED,
-    ],
-    [EventStatus.SENDING]: [
-        EventStatus.ENCRYPTING,
-        EventStatus.QUEUED,
-        EventStatus.NOT_SENT,
-        EventStatus.SENT,
-    ],
-    [EventStatus.QUEUED]: [
-        EventStatus.SENDING,
-        EventStatus.CANCELLED,
-    ],
+    [EventStatus.ENCRYPTING]: [EventStatus.SENDING, EventStatus.NOT_SENT, EventStatus.CANCELLED],
+    [EventStatus.SENDING]: [EventStatus.ENCRYPTING, EventStatus.QUEUED, EventStatus.NOT_SENT, EventStatus.SENT],
+    [EventStatus.QUEUED]: [EventStatus.SENDING, EventStatus.NOT_SENT, EventStatus.CANCELLED],
     [EventStatus.SENT]: [],
-    [EventStatus.NOT_SENT]: [
-        EventStatus.SENDING,
-        EventStatus.QUEUED,
-        EventStatus.CANCELLED,
-    ],
+    [EventStatus.NOT_SENT]: [EventStatus.SENDING, EventStatus.QUEUED, EventStatus.CANCELLED],
     [EventStatus.CANCELLED]: [],
 };
 
-// TODO i18n
-function memberNamesToRoomName(names: string[], count = (names.length + 1)) {
-    const mxLocalSettings = JSON.parse(localStorage.getItem('mx_local_settings')); // watcha+
-    if (mxLocalSettings?.language === "fr") return memberNamesToRoomNameFr(names, count); // watcha+
+export enum RoomNameType {
+    EmptyRoom,
+    Generated,
+    Actual,
+}
+
+export interface EmptyRoomNameState {
+    type: RoomNameType.EmptyRoom;
+    oldName?: string;
+}
+
+export interface GeneratedRoomNameState {
+    type: RoomNameType.Generated;
+    subtype?: "Inviting";
+    names: string[];
+    count: number;
+}
+
+export interface ActualRoomNameState {
+    type: RoomNameType.Actual;
+    name: string;
+}
+
+export type RoomNameState = EmptyRoomNameState | GeneratedRoomNameState | ActualRoomNameState;
+
+// Can be overriden by IMatrixClientCreateOpts::memberNamesToRoomNameFn
+function memberNamesToRoomName(names: string[], count: number): string {
     const countWithoutMe = count - 1;
     if (!names.length) {
         return "Empty room";
@@ -3716,138 +3803,3 @@ function memberNamesToRoomName(names: string[], count = (names.length + 1)) {
         }
     }
 }
-
-// watcha+
-function memberNamesToRoomNameFr(names, count = (names.length + 1)) {
-    const countWithoutMe = count - 1;
-    if (!names.length) {
-        return "Salon vide";
-    } else if (names.length === 1 && countWithoutMe <= 1) {
-        return names[0];
-    } else if (names.length === 2 && countWithoutMe <= 2) {
-        return `${names[0]} et ${names[1]}`;
-    } else {
-        const plural = countWithoutMe > 1;
-        if (plural) {
-            return `${names[0]} et ${countWithoutMe} autres`;
-        } else {
-            return `${names[0]} et 1 autre`;
-        }
-    }
-}
-// +watcha
-
-/**
- * Fires when an event we had previously received is redacted.
- *
- * (Note this is *not* fired when the redaction happens before we receive the
- * event).
- *
- * @event module:client~MatrixClient#"Room.redaction"
- * @param {MatrixEvent} event The matrix redaction event
- * @param {Room} room The room containing the redacted event
- */
-
-/**
- * Fires when an event that was previously redacted isn't anymore.
- * This happens when the redaction couldn't be sent and
- * was subsequently cancelled by the user. Redactions have a local echo
- * which is undone in this scenario.
- *
- * @event module:client~MatrixClient#"Room.redactionCancelled"
- * @param {MatrixEvent} event The matrix redaction event that was cancelled.
- * @param {Room} room The room containing the unredacted event
- */
-
-/**
- * Fires whenever the name of a room is updated.
- * @event module:client~MatrixClient#"Room.name"
- * @param {Room} room The room whose Room.name was updated.
- * @example
- * matrixClient.on("Room.name", function(room){
- *   var newName = room.name;
- * });
- */
-
-/**
- * Fires whenever a receipt is received for a room
- * @event module:client~MatrixClient#"Room.receipt"
- * @param {event} event The receipt event
- * @param {Room} room The room whose receipts was updated.
- * @example
- * matrixClient.on("Room.receipt", function(event, room){
- *   var receiptContent = event.getContent();
- * });
- */
-
-/**
- * Fires whenever a room's tags are updated.
- * @event module:client~MatrixClient#"Room.tags"
- * @param {event} event The tags event
- * @param {Room} room The room whose Room.tags was updated.
- * @example
- * matrixClient.on("Room.tags", function(event, room){
- *   var newTags = event.getContent().tags;
- *   if (newTags["favourite"]) showStar(room);
- * });
- */
-
-/**
- * Fires whenever a room's account_data is updated.
- * @event module:client~MatrixClient#"Room.accountData"
- * @param {event} event The account_data event
- * @param {Room} room The room whose account_data was updated.
- * @param {MatrixEvent} prevEvent The event being replaced by
- * the new account data, if known.
- * @example
- * matrixClient.on("Room.accountData", function(event, room, oldEvent){
- *   if (event.getType() === "m.room.colorscheme") {
- *       applyColorScheme(event.getContents());
- *   }
- * });
- */
-
-/**
- * Fires when the status of a transmitted event is updated.
- *
- * <p>When an event is first transmitted, a temporary copy of the event is
- * inserted into the timeline, with a temporary event id, and a status of
- * 'SENDING'.
- *
- * <p>Once the echo comes back from the server, the content of the event
- * (MatrixEvent.event) is replaced by the complete event from the homeserver,
- * thus updating its event id, as well as server-generated fields such as the
- * timestamp. Its status is set to null.
- *
- * <p>Once the /send request completes, if the remote echo has not already
- * arrived, the event is updated with a new event id and the status is set to
- * 'SENT'. The server-generated fields are of course not updated yet.
- *
- * <p>If the /send fails, In this case, the event's status is set to
- * 'NOT_SENT'. If it is later resent, the process starts again, setting the
- * status to 'SENDING'. Alternatively, the message may be cancelled, which
- * removes the event from the room, and sets the status to 'CANCELLED'.
- *
- * <p>This event is raised to reflect each of the transitions above.
- *
- * @event module:client~MatrixClient#"Room.localEchoUpdated"
- *
- * @param {MatrixEvent} event The matrix event which has been updated
- *
- * @param {Room} room The room containing the redacted event
- *
- * @param {string} oldEventId The previous event id (the temporary event id,
- *    except when updating a successfully-sent event when its echo arrives)
- *
- * @param {EventStatus} oldStatus The previous event status.
- */
-
-/**
- * Fires when the logged in user's membership in the room is updated.
- *
- * @event module:models/room~Room#"Room.myMembership"
- * @param {Room} room The room in which the membership has been updated
- * @param {string} membership The new membership value
- * @param {string} prevMembership The previous membership value
- */
-
