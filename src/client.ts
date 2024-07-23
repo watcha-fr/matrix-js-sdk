@@ -236,7 +236,6 @@ const SCROLLBACK_DELAY_MS = 3000;
 export const CRYPTO_ENABLED: boolean = isCryptoAvailable();
 const CAPABILITIES_CACHE_MS = 21600000; // 6 hours - an arbitrary value
 const TURN_CHECK_INTERVAL = 10 * 60 * 1000; // poll for turn credentials every 10 minutes
-const CALENDAR_EVENT_TYPE = "watcha.room.nextcloud_calendar"; // watcha+
 
 export const UNSTABLE_MSC3852_LAST_SEEN_UA = new UnstableValue(
     "last_seen_user_agent",
