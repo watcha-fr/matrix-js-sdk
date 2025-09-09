@@ -7487,6 +7487,28 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
         return this.http.authedRequest(Method.Post, path, undefined, undefined, { prefix: "" });
     }
 
+    // watcha+
+    /**
+     * Deletes (purges) a room using Synapse's administrator API.
+     * <strong>This function is implementation specific and may change as a result.</strong>
+     * @param roomId - the room ID to delete.
+     * @returns the delete response - see Synapse docs for information.
+     */
+    public deleteEmptyRoom(roomId: string): Promise<any> {
+        const path = utils.encodeUri("/_synapse/admin/v1/rooms/$roomId", { $roomId: roomId });
+        return this.http.authedRequest(
+            Method.Delete,
+            path,
+            undefined,
+            {
+                purge: true,
+                block: false,
+            },
+            { prefix: "" },
+        );
+    }
+    // +watcha
+
     private async fetchClientWellKnown(): Promise<void> {
         // `getRawClientConfig` does not throw or reject on network errors, instead
         // it absorbs errors and returns `{}`.
