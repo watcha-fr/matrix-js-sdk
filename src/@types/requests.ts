@@ -78,7 +78,9 @@ export interface ISendEventResponse {
 
 export interface IPresenceOpts {
     // One of "online", "offline" or "unavailable"
-    presence: "online" | "offline" | "unavailable";
+    // watcha+ : ajout de l'état "busy" (MSC3026, org.matrix.msc3026.busy) pour le statut "Occupé"
+    presence: "online" | "offline" | "unavailable" | "org.matrix.msc3026.busy";
+    // +watcha
     // The status message to attach.
     status_msg?: string;
 }
