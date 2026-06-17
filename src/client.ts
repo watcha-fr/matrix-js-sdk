@@ -5871,9 +5871,7 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
             $userId: this.credentials.userId!,
         });
 
-        // watcha+ : "org.matrix.msc3026.busy" autorise le statut "Occupé" (MSC3026)
-        const validStates = ["offline", "online", "unavailable", "org.matrix.msc3026.busy"];
-        // +watcha
+        const validStates = ["offline", "online", "unavailable"];
         if (validStates.indexOf(opts.presence) === -1) {
             throw new Error("Bad presence value: " + opts.presence);
         }
