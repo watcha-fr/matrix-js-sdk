@@ -73,6 +73,7 @@ import {
     MediaPrefix,
     Method,
     retryNetworkOperation,
+    WatchaPrefix, // watcha+
     type TokenRefreshFunction,
     type Upload,
     type UploadOpts,
@@ -901,6 +902,26 @@ interface IWhoamiResponse {
     device_id?: string;
     is_guest?: boolean;
 }
+
+// watcha+
+export interface IOwnCalendars {
+    VEVENT_VTODO: IOwnCalendar[];
+    VEVENT: IOwnCalendar[];
+    VTODO: IOwnCalendar[];
+}
+
+export interface IOwnCalendar {
+    id: number;
+    displayname: string;
+}
+
+export interface ICalendar {
+    id: number;
+    displayname: string;
+    components: string[];
+    is_personal: boolean;
+}
+// +watcha
 /* eslint-enable camelcase */
 
 // We're using this constant for methods overloading and inspect whether a variable
@@ -1271,6 +1292,7 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
     protected canSupportVoip = false;
     protected peekSync: SyncApi | null = null;
     protected isGuestAccount = false;
+    protected isPartnerAccount = false; // watcha+
     protected ongoingScrollbacks: { [roomId: string]: { promise?: Promise<Room>; errorTs?: number } } = {};
     protected notifTimelineSet: EventTimelineSet | null = null;
 
@@ -1890,6 +1912,24 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
     public setGuest(guest: boolean): void {
         this.isGuestAccount = guest;
     }
+
+    // watcha+
+    /**
+     * Return whether the client is configured for a partner account.
+     * @returns True if this is a partner account.
+     */
+    public isPartner(): boolean {
+        return this.isPartnerAccount;
+    }
+
+    /**
+     * Set whether this client is a partner account.
+     * @param partner - True if this is a partner account.
+     */
+    public setPartner(partner: boolean): void {
+        this.isPartnerAccount = partner;
+    }
+    // +watcha
 
     /**
      * Return the provided scheduler, if any.
@@ -4139,7 +4179,10 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
     public async inviteByThreePid(roomId: string, medium: string, address: string): Promise<EmptyObject> {
         const path = utils.encodeUri("/rooms/$roomId/invite", { $roomId: roomId });
 
+        /* watcha!
         const identityServerUrl = this.getIdentityServerUrl(true);
+        !watcha */
+        const identityServerUrl = "fake-is.watcha.fr"; // watcha+ until we have an IS
         if (!identityServerUrl) {
             return Promise.reject(
                 new MatrixError({
@@ -6080,10 +6123,35 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
         return this.http.authedRequest(Method.Post, path, undefined, undefined, { prefix: "" });
     }
 
+    // watcha+
+    /**
+     * Deletes (purges) a room using Synapse's administrator API.
+     * <strong>This function is implementation specific and may change as a result.</strong>
+     * @param roomId - the room ID to delete.
+     * @returns the delete response - see Synapse docs for information.
+     */
+    public deleteEmptyRoom(roomId: string): Promise<any> {
+        const path = utils.encodeUri("/_synapse/admin/v1/rooms/$roomId", { $roomId: roomId });
+        return this.http.authedRequest(
+            Method.Delete,
+            path,
+            undefined,
+            {
+                purge: true,
+                block: false,
+            },
+            { prefix: "" },
+        );
+    }
+    // +watcha
+
     protected async fetchClientWellKnown(): Promise<void> {
         // `getRawClientConfig` does not throw or reject on network errors, instead
         // it absorbs errors and returns `{}`.
+        /* watcha!
         this.clientWellKnownPromise = AutoDiscovery.getRawClientConfig(this.getDomain() ?? undefined);
+        !watcha */
+        this.clientWellKnownPromise = AutoDiscovery.getRawClientConfig(window.location.hostname ?? undefined); // watcha+
         this.clientWellKnown = await this.clientWellKnownPromise;
         this.emit(ClientEvent.ClientWellKnown, this.clientWellKnown);
     }
@@ -8713,6 +8781,66 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
 
         return new MSC3089TreeSpace(this, roomId);
     }
+
+    // watcha+
+    /**
+     * @returns Promise<IOwnCalendars>
+     */
+    public getOwnCalendars(): Promise<IOwnCalendars> {
+        return this.http.authedRequest(Method.Get, "/calendars", undefined, undefined, {
+            prefix: WatchaPrefix.NEXTCLOUD,
+        });
+    }
+
+    /**
+     * @param calendarId - The numeric Nextcloud calendar id.
+     * @returns Promise<ICalendar>
+     */
+    public getCalendar(calendarId: number): Promise<ICalendar> {
+        const path = utils.encodeUri("/calendars/$calendarId", {
+            $calendarId: calendarId.toString(),
+        });
+        return this.http.authedRequest(Method.Get, path, undefined, undefined, {
+            prefix: WatchaPrefix.NEXTCLOUD,
+        });
+    }
+
+    /**
+     * Move the given calendar to the top of the user's Nextcloud calendar list.
+     * @param calendarId - The numeric Nextcloud calendar id.
+     */
+    public reorderCalendars(calendarId: string): Promise<EmptyObject> {
+        const path = utils.encodeUri("/calendars/$calendarId/top", {
+            $calendarId: calendarId.toString(),
+        });
+        return this.http.authedRequest(Method.Put, path, undefined, undefined, {
+            prefix: WatchaPrefix.NEXTCLOUD,
+        });
+    }
+
+    /**
+     * Bind a Nextcloud calendar to a room via a `watcha.room.nextcloud_calendar` state event.
+     * @param roomId - The room ID.
+     * @param calendarId - The numeric Nextcloud calendar id (or null to clear).
+     */
+    public async setRoomCalendar(
+        roomId: string,
+        calendarId: number | null = null,
+    ): Promise<ISendEventResponse> {
+        return this.sendStateEvent(roomId, EventType.Calendar, {
+            id: calendarId,
+        });
+    }
+
+    /**
+     * Unbind a Nextcloud calendar by clearing the state event with the given state key.
+     * @param roomId - The room ID.
+     * @param stateKey - The state key identifying the calendar slot.
+     */
+    public async unsetRoomCalendar(roomId: string, stateKey: string): Promise<ISendEventResponse> {
+        return this.sendStateEvent(roomId, EventType.Calendar, {}, stateKey);
+    }
+    // +watcha
 
     /**
      * Perform a single MSC3575 sliding sync request.

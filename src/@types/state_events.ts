@@ -151,3 +151,9 @@ export interface RoomPolicyContent {
     via: string;
     public_key: string;
 }
+
+// watcha+
+export interface CalendarContent {
+    id?: number | null;
+}
+// +watcha

@@ -37,6 +37,7 @@ import {
     type RoomTopicEventContent,
     type SpaceChildEventContent,
     type SpaceParentEventContent,
+    type CalendarContent, // watcha+
 } from "./state_events.ts";
 import { type IGroupCallRoomMemberState, type IGroupCallRoomState } from "../webrtc/groupCall.ts";
 import { type MSC3089EventContent } from "../models/MSC3089Branch.ts";
@@ -162,6 +163,9 @@ export enum EventType {
 
     // Policy servers
     RoomPolicy = "org.matrix.msc4284.policy",
+
+    //Watcha
+    Calendar = "watcha.room.nextcloud_calendar", // watcha+
 }
 
 export enum RelationType {
@@ -396,6 +400,10 @@ export interface StateEvents {
 
     // MSC3672
     [M_BEACON_INFO.name]: MBeaconInfoEventContent;
+
+    // watcha+
+    [EventType.Calendar]: CalendarContent;
+    // +watcha
 }
 
 /**
